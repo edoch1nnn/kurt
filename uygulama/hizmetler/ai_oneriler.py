@@ -38,20 +38,30 @@ def _yerel_oneriler(bulgular):
     return sonuc
 
 
+def _gemini_yanitini_oku(veri):
+    adaylar = veri.get('candidates') or []
+    parcalar = []
+    for aday in adaylar:
+        icerikler = (aday.get('content') or {}).get('parts') or []
+        for parca in icerikler:
+            if isinstance(parca, dict) and isinstance(parca.get('text'), str):
+                parcalar.append(parca['text'])
+    return ''.join(parcalar).strip()
+
+
 def ai_onerileri_getir(analiz_verisi):
     bulgular = analiz_verisi.get('bulgular', [])
     yerel = _yerel_oneriler(bulgular)
-    # iki isim de desteklenir. Kurt'un kendi ayari AI_ANAHTARI, standart OpenAI adi da kabul edilir.
-    anahtar = os.getenv('AI_ANAHTARI', '').strip() or os.getenv('OPENAI_API_KEY', '').strip()
+    anahtar = os.getenv('GEMINI_API_KEY', '').strip() or os.getenv('AI_ANAHTARI', '').strip()
     if not anahtar:
         return {
             'aktif': False,
             'model': None,
-            'ozet': 'yerel analiz kurallari kullanildi. ai anahtari tanimli degil.',
+            'ozet': 'yerel analiz kurallari kullanildi. gemini anahtari tanimli degil.',
             'oncelikler': yerel,
         }
 
-    model = os.getenv('AI_MODEL', 'gpt-5.6-luna').strip()
+    model = os.getenv('AI_MODEL', 'gemini-2.5-flash').strip() or 'gemini-2.5-flash'
     istek_verisi = {
         'adres': analiz_verisi.get('adres'),
         'puan': analiz_verisi.get('puan'),
@@ -74,40 +84,54 @@ def ai_onerileri_getir(analiz_verisi):
         'Yalnizca JSON dondur: {"ozet":"...","oncelikler":[{"kod":"...","onerme":"..."}]}. '
         'oncelikleri en fazla 5 adet yap ve sadece verilen bulgu kodlarini kullan.'
     )
+    istem = sistem + '\n\nanaliz verisi:\n' + json.dumps(istek_verisi, ensure_ascii=False)
     govde = json.dumps({
-        'model': model,
-        'input': [
-            {'role': 'system', 'content': sistem},
-            {'role': 'user', 'content': json.dumps(istek_verisi, ensure_ascii=False)},
+        'contents': [
+            {'parts': [{'text': istem}]}
         ],
+        'generationConfig': {
+            'temperature': 0.2,
+            'responseMimeType': 'application/json',
+        },
     }, ensure_ascii=False).encode('utf-8')
+    url = f'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={anahtar}'
     istek = urllib.request.Request(
-        'https://api.openai.com/v1/responses',
+        url,
         data=govde,
-        headers={'Authorization': f'Bearer {anahtar}', 'Content-Type': 'application/json'},
+        headers={'Content-Type': 'application/json'},
         method='POST',
     )
     try:
         with urllib.request.urlopen(istek, timeout=20) as cevap:
             veri = json.loads(cevap.read().decode('utf-8'))
-    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError) as hata:
-        return {'aktif': False, 'model': model, 'ozet': f'ai kullanilamadi, yerel oneriler kullanildi: {hata}', 'oncelikler': yerel}
+    except urllib.error.HTTPError as hata:
+        if hata.code in (400, 401, 403):
+            return {
+                'aktif': False,
+                'model': model,
+                'ozet': 'gemini kullanilamadi, yerel oneriler kullanildi: API anahtari veya model yetkisi kontrol edilmeli.',
+                'oncelikler': yerel,
+            }
+        return {'aktif': False, 'model': model, 'ozet': 'gemini kullanilamadi, yerel oneriler kullanildi.', 'oncelikler': yerel}
+    except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError):
+        return {'aktif': False, 'model': model, 'ozet': 'gemini kullanilamadi, yerel oneriler kullanildi.', 'oncelikler': yerel}
 
-    metin = veri.get('output_text')
-    if not metin:
-        parcalar = []
-        for cikti in veri.get('output', []):
-            for icerik in cikti.get('content', []):
-                if isinstance(icerik, dict) and icerik.get('text'):
-                    parcalar.append(icerik['text'])
-        metin = ''.join(parcalar)
+    metin = _gemini_yanitini_oku(veri)
     try:
         sonuc = json.loads(metin)
     except (TypeError, json.JSONDecodeError):
-        return {'aktif': False, 'model': model, 'ozet': 'ai yaniti okunamadi, yerel oneriler kullanildi.', 'oncelikler': yerel}
+        return {'aktif': False, 'model': model, 'ozet': 'gemini yaniti okunamadi, yerel oneriler kullanildi.', 'oncelikler': yerel}
 
     izinli = {x['kod'] for x in bulgular}
-    oncelikler = [x for x in sonuc.get('oncelikler', []) if isinstance(x, dict) and x.get('kod') in izinli and isinstance(x.get('onerme'), str)][:5]
+    oncelikler = [
+        x for x in sonuc.get('oncelikler', [])
+        if isinstance(x, dict) and x.get('kod') in izinli and isinstance(x.get('onerme'), str)
+    ][:5]
     if not oncelikler:
         oncelikler = yerel
-    return {'aktif': True, 'model': model, 'ozet': str(sonuc.get('ozet', 'analiz tamamlandi.')), 'oncelikler': oncelikler}
+    return {
+        'aktif': True,
+        'model': model,
+        'ozet': str(sonuc.get('ozet', 'analiz tamamlandi.')),
+        'oncelikler': oncelikler,
+    }
