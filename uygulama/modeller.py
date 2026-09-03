@@ -29,6 +29,11 @@ class Bosluk(veritabani.Model):
     onerme = veritabani.Column(veritabani.Text, nullable=False)
     analiz_id = veritabani.Column(veritabani.Integer, nullable=False)
 
+class WebAnalizDetay(veritabani.Model):
+    id = veritabani.Column(veritabani.Integer, primary_key=True)
+    analiz_id = veritabani.Column(veritabani.Integer, unique=True, nullable=False)
+    veri = veritabani.Column(veritabani.Text, nullable=False)
+
 class Telemetri(veritabani.Model):
     id = veritabani.Column(veritabani.Integer, primary_key=True)
     ad = veritabani.Column(veritabani.String(120), unique=True, nullable=False)
