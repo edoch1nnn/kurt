@@ -11,7 +11,7 @@ from uygulama.yollar import kayit_yollari
 
 load_dotenv()
 
-surum = '0.3.0'
+surum = '0.3.1'
 veritabani_adresi = os.getenv('VERITABANI_ADRESI', 'sqlite:///kurt.db').strip()
 
 if veritabani_adresi.startswith('postgres://'):
@@ -60,6 +60,7 @@ if veritabani_url.drivername == 'postgresql+psycopg':
 veritabani.init_app(uygulama)
 kayit_yollari(uygulama, surum)
 
+
 @uygulama.get('/saglik')
 def saglik():
     try:
@@ -75,10 +76,15 @@ def saglik():
         gunluk.exception('veritabani saglik kontrolu basarisiz')
         return jsonify({'durum': 'hata', 'surum': surum, 'veritabani': 'bagli degil', 'hata': str(hata)}), 503
 
+
 with uygulama.app_context():
     try:
         veritabani.create_all()
-        gunluk.info('kurt %s basladi | veritabani=%s', surum, 'postgresql' if veritabani_url.drivername == 'postgresql+psycopg' else 'sqlite')
+        gunluk.info(
+            'kurt %s basladi | veritabani=%s',
+            surum,
+            'postgresql' if veritabani_url.drivername == 'postgresql+psycopg' else 'sqlite',
+        )
     except SQLAlchemyError as hata:
         gunluk.exception('veritabani tablolarini olusturma basarisiz')
         raise RuntimeError(f'veritabani baslatilamadi: {hata}') from hata
