@@ -41,7 +41,8 @@ def _yerel_oneriler(bulgular):
 def ai_onerileri_getir(analiz_verisi):
     bulgular = analiz_verisi.get('bulgular', [])
     yerel = _yerel_oneriler(bulgular)
-    anahtar = os.getenv('AI_ANAHTARI', '').strip()
+    # iki isim de desteklenir. Kurt'un kendi ayari AI_ANAHTARI, standart OpenAI adi da kabul edilir.
+    anahtar = os.getenv('AI_ANAHTARI', '').strip() or os.getenv('OPENAI_API_KEY', '').strip()
     if not anahtar:
         return {
             'aktif': False,
@@ -59,8 +60,10 @@ def ai_onerileri_getir(analiz_verisi):
         'sunucu': analiz_verisi.get('sunucu'),
         'x_powered_by': analiz_verisi.get('x_powered_by'),
         'teknolojiler': analiz_verisi.get('teknolojiler', []),
+        'servisler': analiz_verisi.get('servisler', []),
         'dns': analiz_verisi.get('dns', {}),
         'subdomainler': analiz_verisi.get('subdomainler', []),
+        'ipler': analiz_verisi.get('ipler', []),
         'sertifika': analiz_verisi.get('sertifika'),
         'bulgular': bulgular,
     }
