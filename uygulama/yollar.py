@@ -3,12 +3,15 @@ from sqlalchemy.exc import SQLAlchemyError
 from uygulama import veritabani
 from uygulama.modeller import Analiz, Bosluk, Teknik, Telemetri
 from uygulama.hizmetler.analiz import analiz_yap, baslangic_verisi, TEMEL_TELEMETRI
+from uygulama.hizmetler.web_analiz import WebAnalizHatasi, web_analizi_yap
+
 
 def _hata(mesaj, kod=400):
     veritabani.session.rollback()
     return jsonify({'basarili': False, 'hata': mesaj}), kod
 
-def kayit_yollari(uygulama, surum='0.2.1'):
+
+def kayit_yollari(uygulama, surum='0.3.0'):
     @uygulama.get('/')
     def ana_sayfa():
         baslangic_verisi()
@@ -30,6 +33,35 @@ def kayit_yollari(uygulama, surum='0.2.1'):
     def telemetri():
         baslangic_verisi()
         return render_template('telemetri.html', telemetriler=Telemetri.query.order_by(Telemetri.ad).all(), surum=surum)
+
+    @uygulama.post('/api/web-analiz')
+    def api_web_analiz():
+        veri = request.get_json(silent=True)
+        if not isinstance(veri, dict):
+            return _hata('json govdesi gerekli')
+        adres = veri.get('adres', '')
+        if not isinstance(adres, str) or not adres.strip():
+            return _hata('analiz edilecek url gerekli')
+        try:
+            bulgular = web_analizi_yap(adres.strip())
+            analiz = analiz_yap(
+                f'web: {bulgular["adres"]}',
+                ['ag_baglantisi'],
+                ['T1071.001'] if bulgular['https'] else [],
+            )
+            return jsonify({
+                'basarili': True,
+                'surum': surum,
+                'id': analiz.id,
+                'skor': round(analiz.skor, 2),
+                'durum': analiz.durum,
+                'bulgular': bulgular,
+                'not': 'bu mod tek bir web istegiyle pasif gorunurluk kontrolu yapar; zafiyet istismari veya port taramasi yapmaz.',
+            })
+        except WebAnalizHatasi as hata:
+            return _hata(str(hata), 400)
+        except (SQLAlchemyError, RuntimeError) as hata:
+            return _hata(f'web analizi kaydedilemedi: {hata}', 500)
 
     @uygulama.post('/api/analiz')
     def api_analiz():
