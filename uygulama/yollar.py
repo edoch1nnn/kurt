@@ -3,6 +3,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from uygulama import veritabani
 from uygulama.modeller import Analiz, Bosluk, Teknik, Telemetri
 from uygulama.hizmetler.analiz import analiz_yap, baslangic_verisi, TEMEL_TELEMETRI
+from uygulama.hizmetler.ai_oneriler import ai_onerileri_getir
 from uygulama.hizmetler.web_analiz import WebAnalizHatasi, web_analizi_yap
 
 
@@ -44,29 +45,40 @@ def kayit_yollari(uygulama, surum='0.3.1'):
             return _hata('analiz edilecek url gerekli')
         try:
             bulgular = web_analizi_yap(adres.strip())
-            analiz = analiz_yap(
-                f'web: {bulgular["adres"]}',
-                ['ag_baglantisi'],
-                ['T1071.001'] if bulgular['https'] else [],
+            durum = 'iyi' if bulgular['puan'] >= 85 else 'iyilestirilmeli' if bulgular['puan'] >= 60 else 'kritik'
+            analiz = Analiz(
+                ad=f'web: {bulgular["adres"]}',
+                skor=bulgular['puan'],
+                durum=durum,
+                telemetri_skoru=100 if bulgular['https'] else 50,
+                tespit_skoru=bulgular['puan'],
+                korelasyon_skoru=100 if len(bulgular['bulgular']) <= 2 else 60,
+                gorunurluk_skoru=bulgular['puan'],
             )
-            # Web bulgularini mevcut bosluk tablosuna kaydet; boylece eski veritabani semasi korunur.
+            veritabani.session.add(analiz)
+            veritabani.session.flush()
+
+            ai = ai_onerileri_getir(bulgular)
+            ai_map = {x['kod']: x['onerme'] for x in ai['oncelikler']}
             for bulgu in bulgular['bulgular']:
+                onerme = ai_map.get(bulgu['kod'], bulgu['onerme'])
                 veritabani.session.add(Bosluk(
                     teknik=bulgu['kod'],
                     ad=bulgu['baslik'],
                     seviye=bulgu['seviye'],
                     tur='web',
-                    onerme=bulgu['onerme'],
+                    onerme=onerme,
                     analiz_id=analiz.id,
                 ))
             veritabani.session.commit()
+            bulgular['ai'] = ai
             return jsonify({
                 'basarili': True,
                 'id': analiz.id,
                 'skor': round(bulgular['puan'], 2),
-                'durum': 'iyi' if bulgular['puan'] >= 85 else 'iyilestirilmeli',
+                'durum': durum,
                 'bulgular': bulgular,
-                'not': 'bu mod tek bir kontrollu web istegiyle pasif gorunurluk kontrolu yapar; istismar, brute force, port ve dizin taramasi yapmaz.',
+                'not': 'bu mod tek bir kontrollu web istegi ve dusuk etkili dns gorunum kontrolleri yapar.',
             })
         except WebAnalizHatasi as hata:
             return _hata(str(hata), 400)
