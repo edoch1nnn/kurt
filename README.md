@@ -1,10 +1,10 @@
-# kurt v0.3.1
+# kurt
 
 kurt, yetkili oldugun web sistemlerinin disaridan gorunen guvenlik ve gorunurluk durumunu inceleyen python tabanli bir purple team aracidir.
 
 amac basit: bir web sisteminin disaridan hangi sinyalleri verdigini toplamak, guvenlik gorunurlugunu puanlamak, tespit bosluklarini gostermek ve istersen gemini ile bulgular icin daha anlamli savunma onerileri uretmek.
 
-## v0.3.1 ne getirdi
+## özellikler
 
 - gercek web adresleri icin kontrollu gorunurluk analizi
 - HTTP durum kodu ve yanit suresi kontrolu
@@ -72,7 +72,7 @@ linux/mac kullaniyorsan:
 cp .env.example .env
 ```
 
-`.env` dosyasini ac ve en azindan su ayarlari kontrol et:
+`.env` dosyasini ac ve su ayarlari kontrol et:
 
 ```env
 VERITABANI_ADRESI=sqlite:///kurt.db
@@ -93,8 +93,6 @@ gemini onerilerini kullanmak istiyorsan google ai studio uzerinden kendi Gemini 
 GEMINI_API_KEY=buraya_kendi_gemini_anahtarini_yaz
 AI_MODEL=gemini-2.5-flash
 ```
-
-**API anahtarini github'a, README'ye, ekran goruntusune veya herhangi bir herkese acik dosyaya koyma.** `.env` dosyasi git tarafindan takip edilmez.
 
 gemini anahtari tanimli degilse kurt yine calisir. bu durumda ai yerine yerel savunma onerileri kullanilir.
 
