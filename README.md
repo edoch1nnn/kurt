@@ -249,7 +249,3 @@ web analiz motoru dis gorunurluk sinyallerini toplar. analiz katmani bunlari pua
 ## surum
 
 `0.3.1`
-
-## lisans
-
-MIT
