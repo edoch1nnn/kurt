@@ -1,9 +1,0 @@
-yerel kurulum:
-
-1) .env.example dosyasini .env olarak kopyala
-2) AI_ANAHTARI satirina kendi anahtarini yaz
-3) .env dosyasini git'e ekleme
-
-PowerShell:
-Copy-Item .env.example .env
-notepad .env
