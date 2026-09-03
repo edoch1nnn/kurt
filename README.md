@@ -1,29 +1,24 @@
-# kurt v0.2.1
+# kurt v0.3.0
 
-kurt guvenlik yiginindaki mitre att&ck gorunurluk tespit ve korelasyon bosluklarini analiz eden python tabanli bir purple team aracidir
+kurt, yetkili oldugun web sistemlerinin disaridan gorunen guvenlik ve gorunurluk durumunu inceleyen python tabanli bir purple team aracidir.
 
-## mimari
+## v0.3.0 ne getirdi
 
-kurt iki veritabani modunu destekler:
+artık panelde `https://site-adresi` girerek gercek bir web sistemine tek bir kontrollu HTTP istegi yapabilirsin.
 
-- **sqlite:** ilk kurulum, gelistirme ve tek bilgisayar testi icin. veriler `kurt.db` dosyasinda tutulur
-- **postgresql:** merkezi kullanim icin. birden fazla terminal ayni PostgreSQL veritabanina baglanarak ortak analiz verilerini gorur
+kontroller:
 
-**github veritabani degildir.** github kaynak kodunu ve statik proje dosyalarini tasir. ortak calisma verileri PostgreSQL'de tutulur.
+- HTTP durum kodu
+- HTTPS kullanimi
+- temel guvenlik basliklari
+- server ve x-powered-by bilgi sizintisi kontrolu
+- TLS sertifika bitis tarihi
+- icerik turu ve alinan veri boyutu
+- basit gorunurluk puani
 
-akıs:
+bu mod **port taramasi, brute force, exploit, dizin taramasi veya zafiyet istismari yapmaz.** yalnizca tek bir web istegiyle pasif dis gorunurluk kontrolu yapar.
 
-`github -> kurt kodu -> sqlite veya merkezi postgresql -> analizler`
-
-## ne yapiyor
-
-kurt bir saldiri gerceklestirme araci degildir. mevcut telemetri ve tespit yeteneklerini puanlar ve hangi tekniklerde kor noktalar oldugunu gosterir
-
-`mitre teknigi -> gerekli telemetri -> mevcut telemetri -> tespit -> korelasyon -> skor -> bosluk`
-
-## hizli baslangic
-
-powershell:
+## kullanim
 
 ```powershell
 git clone https://github.com/edoch1nnn/kurt.git
@@ -33,57 +28,33 @@ copy .env.example .env
 python main.py
 ```
 
-veya:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\baslat.ps1
-```
-
-sonra tarayicidan:
+sonra:
 
 `http://127.0.0.1:5000`
 
-## yerel sqlite modu
+panelde:
 
-varsayilan `.env`:
-
-```env
-VERITABANI_ADRESI=sqlite:///kurt.db
-GIZLI_ANAHTAR=kurt-gelisme-anahtari-2026
-HOST=127.0.0.1
-PORT=5000
-GUNLUK_SEVIYESI=INFO
+```text
+https://example.com
 ```
 
-ilk calistirmada proje klasorunde `kurt.db` olusur.
+gibi bir adres girip `analizi baslat` butonuna bas.
 
-## merkezi postgresql modu
+## hedef guvenligi
 
-merkezi kullanim icin gercek bir PostgreSQL sunucusu gerekir. `.env` icindeki adresi degistir:
+kurt v0.3.0 yerel, loopback, private, link-local, multicast ve rezerve IP adreslerine erisimi engeller. Yalnizca standart HTTP/HTTPS portlari kabul edilir.
 
-```env
-VERITABANI_ADRESI=postgresql+psycopg://kullanici:sifre@sunucu:5432/kurt
-```
+yalnizca sahibi oldugun veya yazili yetkin bulunan sistemleri analiz et. bir sistemi izinsiz otomatik olarak yoklamak yerine ilgili sistem sahibinden izin al.
 
-`postgres://...` veya `postgresql://...` adresleri de kabul edilir ve uygulama bunlari `postgresql+psycopg://...` bicimine cevirir.
+## veritabani
 
-sifre icinde `@`, `/`, `#`, `?` gibi URL karakterleri varsa URL encode edilmelidir.
+sqlite tek bilgisayar ve gelistirme icin, postgresql ise ortak runtime verileri icin kullanilabilir.
 
-ayni PostgreSQL adresini kullanan terminaller ayni merkezi analiz kayitlarini gorur.
-
-**uyari:** `.env` dosyasini githuba yukleme. icinde veritabani sifresi olabilir.
+**github veritabani degildir.** kaynak kodu githubdan, analiz kayitlari ise sqlite veya merkezi postgresql'den gelir.
 
 ## saglik kontrolu
 
-uygulama acildiktan sonra:
-
 `http://127.0.0.1:5000/saglik`
-
-ornek sqlite cevabi:
-
-```json
-{"durum":"iyi","surum":"0.2.1","veritabani":"bagli","tur":"sqlite"}
-```
 
 ## test
 
@@ -91,31 +62,9 @@ ornek sqlite cevabi:
 python -m unittest discover -s testler -p 'test_*.py'
 ```
 
-testler sqlite kullanir. merkezi PostgreSQL baglantisini test etmek icin `.env`yi PostgreSQL adresine ayarlayip `/saglik` endpointini kontrol et.
-
-## github + merkezi veritabani nasil calisir
-
-birinci bilgisayar:
-
-```text
-kurt kodu <- github
-       |
-       +--> merkezi PostgreSQL
-```
-
-ikinci bilgisayar:
-
-```text
-kurt kodu <- github
-       |
-       +--> ayni merkezi PostgreSQL
-```
-
-kodun guncellenmesi `git pull` ile, ortak verilerin guncellenmesi ise PostgreSQL uzerinden olur.
-
 ## surum
 
-`0.2.1`
+`0.3.0`
 
 ## lisans
 
