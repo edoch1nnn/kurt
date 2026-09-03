@@ -11,11 +11,9 @@ from uygulama.yollar import kayit_yollari
 
 load_dotenv()
 
-surum = '0.2.1'
+surum = '0.3.0'
 veritabani_adresi = os.getenv('VERITABANI_ADRESI', 'sqlite:///kurt.db').strip()
 
-# PostgreSQL servislerinin verdigi yaygin URL bicimlerini SQLAlchemy + psycopg
-# ile uyumlu hale getiriyoruz. SQLite da yerel gelistirme icin desteklenir.
 if veritabani_adresi.startswith('postgres://'):
     veritabani_adresi = 'postgresql+psycopg://' + veritabani_adresi[len('postgres://'):]
 elif veritabani_adresi.startswith('postgresql://'):
@@ -75,29 +73,15 @@ def saglik():
     except SQLAlchemyError as hata:
         veritabani.session.rollback()
         gunluk.exception('veritabani saglik kontrolu basarisiz')
-        return jsonify({
-            'durum': 'hata',
-            'surum': surum,
-            'veritabani': 'bagli degil',
-            'hata': str(hata),
-        }), 503
+        return jsonify({'durum': 'hata', 'surum': surum, 'veritabani': 'bagli degil', 'hata': str(hata)}), 503
 
 with uygulama.app_context():
     try:
         veritabani.create_all()
-        gunluk.info(
-            'kurt %s basladi | veritabani=%s',
-            surum,
-            'postgresql' if veritabani_url.drivername == 'postgresql+psycopg' else 'sqlite',
-        )
+        gunluk.info('kurt %s basladi | veritabani=%s', surum, 'postgresql' if veritabani_url.drivername == 'postgresql+psycopg' else 'sqlite')
     except SQLAlchemyError as hata:
         gunluk.exception('veritabani tablolarini olusturma basarisiz')
-        if veritabani_url.drivername == 'postgresql+psycopg':
-            raise RuntimeError(
-                'PostgreSQL baglantisi kurulamadi. .env icindeki VERITABANI_ADRESI, '
-                'host, port, kullanici ve sifreyi kontrol et.'
-            ) from hata
-        raise RuntimeError(f'yerel veritabani olusturulamadi: {hata}') from hata
+        raise RuntimeError(f'veritabani baslatilamadi: {hata}') from hata
 
 if __name__ == '__main__':
     uygulama.run(
