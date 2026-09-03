@@ -1,7 +1,8 @@
+import json
 from flask import jsonify, render_template, request
 from sqlalchemy.exc import SQLAlchemyError
 from uygulama import veritabani
-from uygulama.modeller import Analiz, Bosluk, Teknik, Telemetri
+from uygulama.modeller import Analiz, Bosluk, Teknik, Telemetri, WebAnalizDetay
 from uygulama.hizmetler.analiz import analiz_yap, baslangic_verisi, TEMEL_TELEMETRI
 from uygulama.hizmetler.ai_oneriler import ai_onerileri_getir
 from uygulama.hizmetler.web_analiz import WebAnalizHatasi, web_analizi_yap
@@ -24,11 +25,17 @@ def kayit_yollari(uygulama, surum='0.3.1'):
         baslangic_verisi()
         return render_template('teknikler.html', teknikler=Teknik.query.order_by(Teknik.teknik_id).all(), surum=surum)
 
-    @uygulama.get('/bosluklar')
-    def bosluklar():
+    @uygulama.get('/tespitler')
+    def tespitler():
         son_analiz = Analiz.query.order_by(Analiz.tarih.desc()).first()
         liste = Bosluk.query.filter_by(analiz_id=son_analiz.id).order_by(Bosluk.id.desc()).all() if son_analiz else []
-        return render_template('bosluklar.html', bosluklar=liste, son_analiz=son_analiz, surum=surum)
+        detay = WebAnalizDetay.query.filter_by(analiz_id=son_analiz.id).first() if son_analiz else None
+        veri = json.loads(detay.veri) if detay else {}
+        return render_template('tespitler.html', tespitler=liste, detay=veri, son_analiz=son_analiz, surum=surum)
+
+    @uygulama.get('/bosluklar')
+    def eski_bosluklar():
+        return tespitler()
 
     @uygulama.get('/telemetri')
     def telemetri():
@@ -70,20 +77,50 @@ def kayit_yollari(uygulama, surum='0.3.1'):
                     onerme=onerme,
                     analiz_id=analiz.id,
                 ))
+
+            kayit = dict(bulgular)
+            kayit['ai'] = ai
+            veritabani.session.add(WebAnalizDetay(
+                analiz_id=analiz.id,
+                veri=json.dumps(kayit, ensure_ascii=False),
+            ))
             veritabani.session.commit()
-            bulgular['ai'] = ai
             return jsonify({
                 'basarili': True,
                 'id': analiz.id,
                 'skor': round(bulgular['puan'], 2),
                 'durum': durum,
-                'bulgular': bulgular,
+                'bulgular': kayit,
                 'not': 'bu mod tek bir kontrollu web istegi ve dusuk etkili dns gorunum kontrolleri yapar.',
             })
         except WebAnalizHatasi as hata:
             return _hata(str(hata), 400)
-        except (SQLAlchemyError, RuntimeError) as hata:
+        except (SQLAlchemyError, RuntimeError, TypeError, ValueError) as hata:
             return _hata(f'web analizi kaydedilemedi: {hata}', 500)
+
+    @uygulama.get('/api/tespitler')
+    def api_tespitler():
+        son_analiz = Analiz.query.order_by(Analiz.tarih.desc()).first()
+        if not son_analiz:
+            return jsonify({'basarili': True, 'analiz': None, 'tespitler': [], 'detay': {}})
+        detay = WebAnalizDetay.query.filter_by(analiz_id=son_analiz.id).first()
+        veri = json.loads(detay.veri) if detay else {}
+        tespitler = Bosluk.query.filter_by(analiz_id=son_analiz.id).order_by(Bosluk.id.desc()).all()
+        return jsonify({
+            'basarili': True,
+            'analiz': {
+                'id': son_analiz.id,
+                'ad': son_analiz.ad,
+                'skor': son_analiz.skor,
+                'durum': son_analiz.durum,
+                'tarih': son_analiz.tarih.isoformat() if son_analiz.tarih else None,
+            },
+            'tespitler': [
+                {'kod': x.teknik, 'ad': x.ad, 'seviye': x.seviye, 'tur': x.tur, 'onerme': x.onerme}
+                for x in tespitler
+            ],
+            'detay': veri,
+        })
 
     @uygulama.post('/api/analiz')
     def api_analiz():
