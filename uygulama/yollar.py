@@ -11,7 +11,7 @@ def _hata(mesaj, kod=400):
     return jsonify({'basarili': False, 'hata': mesaj}), kod
 
 
-def kayit_yollari(uygulama, surum='0.3.0'):
+def kayit_yollari(uygulama, surum='0.3.1'):
     @uygulama.get('/')
     def ana_sayfa():
         baslangic_verisi()
@@ -49,14 +49,24 @@ def kayit_yollari(uygulama, surum='0.3.0'):
                 ['ag_baglantisi'],
                 ['T1071.001'] if bulgular['https'] else [],
             )
+            # Web bulgularini mevcut bosluk tablosuna kaydet; boylece eski veritabani semasi korunur.
+            for bulgu in bulgular['bulgular']:
+                veritabani.session.add(Bosluk(
+                    teknik=bulgu['kod'],
+                    ad=bulgu['baslik'],
+                    seviye=bulgu['seviye'],
+                    tur='web',
+                    onerme=bulgu['onerme'],
+                    analiz_id=analiz.id,
+                ))
+            veritabani.session.commit()
             return jsonify({
                 'basarili': True,
-                'surum': surum,
                 'id': analiz.id,
-                'skor': round(analiz.skor, 2),
-                'durum': analiz.durum,
+                'skor': round(bulgular['puan'], 2),
+                'durum': 'iyi' if bulgular['puan'] >= 85 else 'iyilestirilmeli',
                 'bulgular': bulgular,
-                'not': 'bu mod tek bir web istegiyle pasif gorunurluk kontrolu yapar; zafiyet istismari veya port taramasi yapmaz.',
+                'not': 'bu mod tek bir kontrollu web istegiyle pasif gorunurluk kontrolu yapar; istismar, brute force, port ve dizin taramasi yapmaz.',
             })
         except WebAnalizHatasi as hata:
             return _hata(str(hata), 400)
