@@ -47,12 +47,12 @@ cd kurt
 ```
 
 ## 3. kutuphaneleri kur
-
-```powershell
-python -m pip install -r requirements.txt
+linux için:
+```linux
+pip install -r requirements.txt
 ```
 
-python komutu calismiyorsa windows'ta sunu dene:
+windows için:
 
 ```powershell
 py -m pip install -r requirements.txt
@@ -62,14 +62,28 @@ py -m pip install -r requirements.txt
 
 `.env.example` dosyasini `.env` olarak kopyala:
 
+windows için:
+
 ```powershell
 copy .env.example .env
+```
+
+windowsta .env dosyasını açmak için:
+
+```powershell
+notepad .env
 ```
 
 linux/mac kullaniyorsan:
 
 ```bash
 cp .env.example .env
+```
+
+.env dosyasını açmak için:
+
+```linux
+nano .env
 ```
 
 `.env` dosyasini ac ve su ayarlari kontrol et:
