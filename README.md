@@ -1,6 +1,6 @@
 # kurt
 
-kurt, yetkili oldugun web sistemlerinin disaridan gorunen guvenlik ve gorunurluk durumunu inceleyen python tabanli bir purple team aracidir.
+kurt, yetkili oldugun web sistemlerinin disaridan gorunen guvenlik ve gorunurluk durumunu inceleyen python tabanli bir blue team aracidir.
 
 amac basit: bir web sisteminin disaridan hangi sinyalleri verdigini toplamak, guvenlik gorunurlugunu puanlamak, tespit bosluklarini gostermek ve istersen gemini ile bulgular icin daha anlamli savunma onerileri uretmek.
 
